@@ -69,7 +69,9 @@ def check_file(path: str, store_cache: dict) -> dict:
         if has_succ_key >= 0.8 * len(rows) and not succ and len(rows) >= 10:
             issues.append("全部失败(%d) 疑似环境故障" % len(rows))
 
-    # 同一 session 出现多个 task_start = tag 复用
+    # 同一 session 出现多个 task_start 可能是 tag 复用导致的污染，也可能
+    # 只是"跑了两遍、事件库被追加"。单看 task_start 个数无法区分，
+    # 真正的判据见 diag_dup.py（比较行内计数与 replay 是否一致）。
     multi_start = []
     for sid in set(sids):
         if sid not in store_cache:
@@ -80,7 +82,11 @@ def check_file(path: str, store_cache: dict) -> dict:
         if n > 1:
             multi_start.append((sid, n))
     if multi_start:
-        issues.append("session 含多个 task_start: %s" % multi_start[:3])
+        if "repro" in os.path.basename(path):
+            notes.append("多 task_start %d（复现实验按设计复用 session id）" % len(multi_start))
+        else:
+            issues.append("session 含多个 task_start: %s（用 diag_dup.py 核实行是否被混算）"
+                          % multi_start[:3])
 
     return {
         "file": os.path.basename(path),
