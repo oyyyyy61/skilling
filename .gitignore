@@ -1,0 +1,18 @@
+# credentials and transport helpers -- never commit
+.sshx/
+
+# python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# experiment byproducts (regenerable, and large)
+results/runs_*/
+results/store_*/
+*.tgz
+*.log
+
+# os noise
+.DS_Store
+Thumbs.db

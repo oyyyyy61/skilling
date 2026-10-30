@@ -1,0 +1,88 @@
+# E1 rule retention
+
+budgets=1200,800,550, mode=enforced, tasks=A1,A4,B1,B5
+
+```
+strategy                 budget  n  success_rate  retention_mean  violation_rate  blocked_per_run  compactions_mean
+-------------------------------------------------------------------------------------------------------------------
+none                     550     4  0.750         1.000           0.000           0.000            0.000           
+none                     800     4  0.750         1.000           0.000           0.000            0.000           
+none                     1200    4  0.750         1.000           0.000           0.000            0.000           
+truncate                 550     4  0.750         1.000           0.000           0.000            3.500           
+truncate                 800     4  0.750         1.000           0.000           0.000            0.750           
+truncate                 1200    4  0.750         1.000           0.000           0.000            0.000           
+typed_summary            550     4  0.750         1.000           0.000           0.000            3.750           
+typed_summary            800     4  0.750         1.000           0.000           0.000            0.250           
+typed_summary            1200    4  0.750         1.000           0.000           0.000            0.000           
+typed_summary_protected  550     4  0.750         1.000           0.000           0.000            5.000           
+typed_summary_protected  800     4  0.750         1.000           0.000           0.000            0.250           
+typed_summary_protected  1200    4  0.750         1.000           0.000           0.000            0.000           
+uniform_summary          550     4  0.750         0.500           0.000           0.000            2.500           
+uniform_summary          800     4  0.750         0.792           0.000           0.000            0.250           
+uniform_summary          1200    4  0.750         1.000           0.000           0.000            0.000           
+```
+
+## per run
+
+| task | strategy | budget | success | retention | violations | compactions |
+|---|---|---|---|---|---|---|
+| A1 | none | 1200 | True | 1.00 | 0 | 0 |
+| A1 | none | 800 | True | 1.00 | 0 | 0 |
+| A1 | none | 550 | True | 1.00 | 0 | 0 |
+| A1 | truncate | 1200 | True | 1.00 | 0 | 0 |
+| A1 | truncate | 800 | True | 1.00 | 0 | 0 |
+| A1 | truncate | 550 | True | 1.00 | 0 | 1 |
+| A1 | uniform_summary | 1200 | True | 1.00 | 0 | 0 |
+| A1 | uniform_summary | 800 | True | 1.00 | 0 | 0 |
+| A1 | uniform_summary | 550 | True | 0.17 | 0 | 1 |
+| A1 | typed_summary | 1200 | True | 1.00 | 0 | 0 |
+| A1 | typed_summary | 800 | True | 1.00 | 0 | 0 |
+| A1 | typed_summary | 550 | True | 1.00 | 0 | 1 |
+| A1 | typed_summary_protected | 1200 | True | 1.00 | 0 | 0 |
+| A1 | typed_summary_protected | 800 | True | 1.00 | 0 | 0 |
+| A1 | typed_summary_protected | 550 | True | 1.00 | 0 | 1 |
+| A4 | none | 1200 | True | 1.00 | 0 | 0 |
+| A4 | none | 800 | True | 1.00 | 0 | 0 |
+| A4 | none | 550 | True | 1.00 | 0 | 0 |
+| A4 | truncate | 1200 | True | 1.00 | 0 | 0 |
+| A4 | truncate | 800 | True | 1.00 | 0 | 3 |
+| A4 | truncate | 550 | True | 1.00 | 0 | 2 |
+| A4 | uniform_summary | 1200 | True | 1.00 | 0 | 0 |
+| A4 | uniform_summary | 800 | True | 0.17 | 0 | 1 |
+| A4 | uniform_summary | 550 | True | 0.67 | 0 | 7 |
+| A4 | typed_summary | 1200 | True | 1.00 | 0 | 0 |
+| A4 | typed_summary | 800 | True | 1.00 | 0 | 1 |
+| A4 | typed_summary | 550 | True | 1.00 | 0 | 7 |
+| A4 | typed_summary_protected | 1200 | True | 1.00 | 0 | 0 |
+| A4 | typed_summary_protected | 800 | True | 1.00 | 0 | 1 |
+| A4 | typed_summary_protected | 550 | True | 1.00 | 0 | 8 |
+| B1 | none | 1200 | True | 1.00 | 0 | 0 |
+| B1 | none | 800 | True | 1.00 | 0 | 0 |
+| B1 | none | 550 | True | 1.00 | 0 | 0 |
+| B1 | truncate | 1200 | True | 1.00 | 0 | 0 |
+| B1 | truncate | 800 | True | 1.00 | 0 | 0 |
+| B1 | truncate | 550 | True | 1.00 | 0 | 1 |
+| B1 | uniform_summary | 1200 | True | 1.00 | 0 | 0 |
+| B1 | uniform_summary | 800 | True | 1.00 | 0 | 0 |
+| B1 | uniform_summary | 550 | True | 0.17 | 0 | 1 |
+| B1 | typed_summary | 1200 | True | 1.00 | 0 | 0 |
+| B1 | typed_summary | 800 | True | 1.00 | 0 | 0 |
+| B1 | typed_summary | 550 | True | 1.00 | 0 | 1 |
+| B1 | typed_summary_protected | 1200 | True | 1.00 | 0 | 0 |
+| B1 | typed_summary_protected | 800 | True | 1.00 | 0 | 0 |
+| B1 | typed_summary_protected | 550 | True | 1.00 | 0 | 1 |
+| B5 | none | 1200 | False | 1.00 | 0 | 0 |
+| B5 | none | 800 | False | 1.00 | 0 | 0 |
+| B5 | none | 550 | False | 1.00 | 0 | 0 |
+| B5 | truncate | 1200 | False | 1.00 | 0 | 0 |
+| B5 | truncate | 800 | False | 1.00 | 0 | 0 |
+| B5 | truncate | 550 | False | 1.00 | 0 | 10 |
+| B5 | uniform_summary | 1200 | False | 1.00 | 0 | 0 |
+| B5 | uniform_summary | 800 | False | 1.00 | 0 | 0 |
+| B5 | uniform_summary | 550 | False | 1.00 | 0 | 1 |
+| B5 | typed_summary | 1200 | False | 1.00 | 0 | 0 |
+| B5 | typed_summary | 800 | False | 1.00 | 0 | 0 |
+| B5 | typed_summary | 550 | False | 1.00 | 0 | 6 |
+| B5 | typed_summary_protected | 1200 | False | 1.00 | 0 | 0 |
+| B5 | typed_summary_protected | 800 | False | 1.00 | 0 | 0 |
+| B5 | typed_summary_protected | 550 | False | 1.00 | 0 | 10 |
