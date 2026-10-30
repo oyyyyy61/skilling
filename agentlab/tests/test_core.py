@@ -283,6 +283,52 @@ def test_crosses_classification() -> None:
     check("crosses ignores an unparsable call", mod.crosses("T1", {}) is False)
 
 
+def test_verify_state_diff() -> None:
+    """状态差分判据：不能靠子串蒙混过关。"""
+    from agentlab import verify
+
+    truth = {"open": 3, "closed": 2, "doing": 1}
+
+    ok, _ = verify.count_pairs_match("| 状态 | 数量 |\n| open | 3 |\n| closed | 2 |\n| doing | 1 |", truth)
+    check("verify: table with exact counts passes", ok)
+
+    ok, _ = verify.count_pairs_match("open: 3 条，closed: 2 条，doing: 1 条", truth)
+    check("verify: plain pairs with exact counts pass", ok)
+
+    ok, _ = verify.count_pairs_match("open: 3 条，closed: 2 条，doing: 5 条", truth)
+    check("verify: one wrong count fails", not ok)
+
+    ok, _ = verify.count_pairs_match("open: 3 条，closed: 2 条", truth)
+    check("verify: missing key fails", not ok)
+
+    # 子串判据会在这里误判："3" 出现在页码里，但计数是错的
+    ok, _ = verify.count_pairs_match("见第 3 页。open: 30，closed: 2，doing: 1", truth)
+    check("verify: a stray number does not rescue a wrong count", not ok)
+
+    d = tmpdir()
+    # 注释里写 TIMEOUT = 60，真实赋值是 30 —— 子串判据会判过，AST 不会
+    p = os.path.join(d, "cfg.py")
+    with open(p, "w", encoding="utf-8") as f:
+        f.write("# 原来是 TIMEOUT = 60，现在改了\nTIMEOUT = 30\nRETRIES = 3\nLOG_LEVEL = 'INFO'\n")
+    ok, detail = verify.config_fields(p, {"TIMEOUT": 60, "RETRIES": 3, "LOG_LEVEL": "INFO"})
+    check("verify: comment is not a field assignment", not ok and detail.get("wrong"))
+
+    with open(p, "w", encoding="utf-8") as f:
+        f.write("TIMEOUT = 60\nRETRIES = 3\nLOG_LEVEL = 'INFO'\n")
+    ok, _ = verify.config_fields(p, {"TIMEOUT": 60, "RETRIES": 3, "LOG_LEVEL": "INFO"})
+    check("verify: real assignment passes", ok)
+
+    ok, _ = verify.markers_in_order("模块 01 票据\n模块 02 配置", ["模块 01", "模块 02"])
+    check("verify: markers in order pass", ok)
+
+    ok, _ = verify.markers_in_order("模块 02 配置\n模块 01 票据", ["模块 01", "模块 02"])
+    check("verify: out-of-order markers fail", not ok)
+
+    ok, _ = verify.markers_in_order("模块 05\n模块 06\n模块 07\n模块 08", 
+                                    ["模块 %02d" % i for i in range(1, 9)])
+    check("verify: prefix truncation fails (the 9000-budget failure mode)", not ok)
+
+
 def main() -> int:
     test_policy()
     test_broker_and_effects()
@@ -293,6 +339,7 @@ def main() -> int:
     test_pollution_classification()
     test_judge_polarity()
     test_crosses_classification()
+    test_verify_state_diff()
     print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
     if FAIL:
         print("failed:", ", ".join(FAIL))

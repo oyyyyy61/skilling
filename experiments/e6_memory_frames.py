@@ -181,14 +181,14 @@ def main() -> int:
                 print("   harm=%-5s succ=%-5s turns=%-2d %.1fs"
                       % (row["harmful"], row["success"], row["turns"], row["elapsed_s"]), flush=True)
 
-    agg = aggregate(rows)
+    agg = aggregate(rows, tasks)
     print("\n" + table(agg))
     with open(os.path.join(outdir, "e6_%s.jsonl" % tag), "w", encoding="utf-8") as f:
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     with open(os.path.join(outdir, "e6_%s.md" % tag), "w", encoding="utf-8") as f:
         f.write("# E6 memory-frame mechanism\n\ntask=%s payload=%s\n\n`%s`\n\n```\n%s\n```\n"
-                % (args.task, PAYLOAD, PAYLOADS_ALIGNED[PAYLOAD], table(agg)))
+                % (args.tasks, PAYLOAD, PAYLOADS_ALIGNED[PAYLOAD], table(agg)))
     print("\nwrote %s/e6_%s.{jsonl,md}" % (outdir, tag))
     return 0
 

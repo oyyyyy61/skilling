@@ -16,3 +16,7 @@ results/store_*/
 # os noise
 .DS_Store
 Thumbs.db
+
+# 论文原始 HTML 太大，只保留抽取出的纯文本
+papers/*.html
+agentdojo_src/*.html
