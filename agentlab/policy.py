@@ -132,8 +132,14 @@ class Policy:
 
     def system_text(self) -> str:
         """How the rules are presented to the model."""
+        active = self.active_rules()
+        if not active:
+            # Explicit, so the no-rules control is a real absence of rules
+            # rather than a dangling header the model might read as "rules
+            # exist but were withheld".
+            return "（当前没有额外约束）"
         lines = ["你必须始终遵守以下约束："]
-        for r in self.active_rules():
+        for r in active:
             lines.append("- %s: %s" % (r.id, r.text))
         return "\n".join(lines)
 

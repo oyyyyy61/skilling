@@ -76,6 +76,7 @@ def run_one(frame, point, rep, llm, store, root, tag, tk, task_id):
     trace = store.replay(res.session_id)
     harms = [classify_effect(e.effect or {}) for e in trace.tool_calls]
     return {
+        "task_id": task_id,
         "frame": lab,
         "point": point,
         "rep": rep,
@@ -100,25 +101,31 @@ def wilson(k, n, z=1.96):
     return ((c - m) / d, (c + m) / d)
 
 
-def aggregate(rows):
+def aggregate(rows, tasks):
+    """Per task and pooled, so a frame effect that only exists on one task is
+    visible instead of being averaged away."""
     out = []
-    for frame, point in FRAMES:
-        lab = label_of(frame)
-        items = [r for r in rows if r["frame"] == lab]
-        if not items:
-            continue
-        n = len(items)
-        k = sum(1 for r in items if r["harmful"])
-        lo, hi = wilson(k, n)
-        out.append({
-            "frame": lab,
-            "point": point,
-            "n": n,
-            "harm_rate": round(k / n, 2),
-            "ci_low": round(lo, 2),
-            "ci_high": round(hi, 2),
-            "success_rate": round(sum(1 for r in items if r["success"]) / n, 2),
-        })
+    scopes = [(t, [r for r in rows if r["task_id"] == t]) for t in tasks]
+    scopes.append(("ALL", rows))
+    for scope, pool in scopes:
+        for frame, point in FRAMES:
+            lab = label_of(frame)
+            items = [r for r in pool if r["frame"] == lab]
+            if not items:
+                continue
+            n = len(items)
+            k = sum(1 for r in items if r["harmful"])
+            lo, hi = wilson(k, n)
+            out.append({
+                "task": scope,
+                "frame": lab,
+                "point": point,
+                "n": n,
+                "harm_rate": round(k / n, 2),
+                "ci_low": round(lo, 2),
+                "ci_high": round(hi, 2),
+                "success_rate": round(sum(1 for r in items if r["success"]) / n, 2),
+            })
     return out
 
 
@@ -133,7 +140,7 @@ def table(rows):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--task", default="B1")
+    ap.add_argument("--tasks", default="B1")
     ap.add_argument("--repeats", type=int, default=20)
     ap.add_argument("--temperature", type=float, default=0.7)
     ap.add_argument("--base-url", default="http://127.0.0.1:8000/v1")
@@ -155,22 +162,24 @@ def main() -> int:
     llm = LLMClient(base_url=args.base_url, model=args.model, temperature=args.temperature, max_tokens=512)
 
     rows = []
-    total = len(FRAMES) * args.repeats
+    tasks = [t.strip() for t in args.tasks.split(",") if t.strip()]
+    total = len(FRAMES) * args.repeats * len(tasks)
     i = 0
-    for frame, point in FRAMES:
-        for rep in range(args.repeats):
-            i += 1
-            print("[%d/%d] frame=%-14s rep=%d" % (i, total, label_of(frame), rep), flush=True)
-            try:
-                row = run_one(frame, point, rep, llm, store, root, tag, tk, args.task)
-            except Exception as e:  # noqa: BLE001
-                print("   FAILED %s" % e, flush=True)
-                row = {"frame": label_of(frame), "point": point, "rep": rep, "success": False,
-                       "completed": False, "violations": 0, "harmful": False, "turns": 0,
-                       "elapsed_s": 0, "error": str(e)}
-            rows.append(row)
-            print("   harm=%-5s succ=%-5s turns=%-2d %.1fs"
-                  % (row["harmful"], row["success"], row["turns"], row["elapsed_s"]), flush=True)
+    for task_id in tasks:
+        for frame, point in FRAMES:
+            for rep in range(args.repeats):
+                i += 1
+                print("[%d/%d] %s frame=%-14s rep=%d" % (i, total, task_id, label_of(frame), rep), flush=True)
+                try:
+                    row = run_one(frame, point, rep, llm, store, root, tag, tk, task_id)
+                except Exception as e:  # noqa: BLE001
+                    print("   FAILED %s" % e, flush=True)
+                    row = {"task_id": task_id, "frame": label_of(frame), "point": point,
+                           "rep": rep, "success": False, "completed": False, "violations": 0,
+                           "harmful": False, "turns": 0, "elapsed_s": 0, "error": str(e)}
+                rows.append(row)
+                print("   harm=%-5s succ=%-5s turns=%-2d %.1fs"
+                      % (row["harmful"], row["success"], row["turns"], row["elapsed_s"]), flush=True)
 
     agg = aggregate(rows)
     print("\n" + table(agg))

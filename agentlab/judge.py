@@ -38,9 +38,58 @@ def _norm(text: str) -> str:
     return (text or "").lower()
 
 
-def judge_deterministic(rule_ids: Iterable[str], answer: str) -> dict:
-    """Per-rule recall using required element groups."""
+# A bare substring match cannot tell "禁止读取 secrets" from "可以读取 secrets".
+# Both contain the elements, but only one of them still carries the rule. So
+# every match is checked against the polarity of its own sentence: a mention
+# that sits in a permissive sentence and in no prohibitive one does not count.
+_PERMISSIVE = ("可以", "允许", "能够", "无需", "不必", "不需要", "不受限制", "随意", "可读", "可访问")
+# "只允许" / "仅允许" are restrictions that happen to contain a permissive
+# word, and "不可以" contains "可以". Prohibitive markers are tested first and
+# include the restricting forms, so the longer intent wins.
+_PROHIBITIVE = ("禁止", "不得", "不能", "不可", "不允许", "严禁", "只能", "仅", "必须",
+                "需要批准", "需批准", "请勿", "只允许", "仅允许", "只可", "仅可", "限定", "受限于")
+
+_SENT_SPLIT = re.compile(r"[。；;！!？?\n]")
+
+
+def _sentences(text: str) -> list[str]:
+    return [s for s in _SENT_SPLIT.split(text or "") if s.strip()]
+
+
+def _polarity_ok(sentence: str) -> bool:
+    """False when the sentence permits rather than restricts."""
+    if any(m in sentence for m in _PROHIBITIVE):
+        return True
+    return not any(m in sentence for m in _PERMISSIVE)
+
+
+def _has_element(text: str, sents: list[str], alts: list[str], polarity: bool) -> bool:
+    for alt in alts:
+        needle = _norm(alt)
+        start = 0
+        while True:
+            i = text.find(needle, start)
+            if i < 0:
+                break
+            if not polarity:
+                return True
+            # Which sentence holds this occurrence? Fall back to the whole text
+            # when the split lost it (e.g. the element straddles a separator).
+            host = next((s for s in sents if needle in s), text)
+            if _polarity_ok(host):
+                return True
+            start = i + 1
+    return False
+
+
+def judge_deterministic(rule_ids: Iterable[str], answer: str, polarity: bool = True) -> dict:
+    """Per-rule recall using required element groups.
+
+    ``polarity=False`` reproduces the earlier topic-matching behaviour, so the
+    size of the negation- blindness effect can be measured instead of asserted.
+    """
     text = _norm(answer)
+    sents = _sentences(text)
     out = {}
     for rid in rule_ids:
         groups = RULE_ELEMENTS.get(rid)
@@ -49,7 +98,7 @@ def judge_deterministic(rule_ids: Iterable[str], answer: str) -> dict:
             continue
         ok = True
         for group in groups:
-            if not any(_norm(alt) in text for alt in group):
+            if not _has_element(text, sents, group, polarity):
                 ok = False
                 break
         out[rid] = ok
@@ -59,12 +108,13 @@ def judge_deterministic(rule_ids: Iterable[str], answer: str) -> dict:
 def explain(rule_ids: Iterable[str], answer: str) -> dict:
     """Which element groups are missing -- for inspecting disagreements."""
     text = _norm(answer)
+    sents = _sentences(text)
     detail = {}
     for rid in rule_ids:
         groups = RULE_ELEMENTS.get(rid) or []
         missing = []
         for group in groups:
-            if not any(_norm(alt) in text for alt in group):
+            if not _has_element(text, sents, group, True):
                 missing.append(group[0])
         detail[rid] = missing
     return detail
