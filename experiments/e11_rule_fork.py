@@ -69,7 +69,8 @@ def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     d = 1 + z * z / n
     c = p + z * z / (2 * n)
     m = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5)
-    return ((c - m) / d, (c + m) / d)
+    # 浮点误差会让 k=0 时的下界变成 -1e-17，表格里印成 "-0.00"，看着像 bug。
+    return (max(0.0, (c - m) / d), min(1.0, (c + m) / d))
 
 
 def split_report(rows: list[dict], tasks: list[str]) -> str:
