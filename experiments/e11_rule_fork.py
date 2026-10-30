@@ -62,6 +62,31 @@ def build_messages(task_id: str, with_rules: bool) -> list[dict]:
     ]
 
 
+def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    if n == 0:
+        return (0.0, 0.0)
+    p = k / n
+    d = 1 + z * z / n
+    c = p + z * z / (2 * n)
+    m = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5)
+    return ((c - m) / d, (c + m) / d)
+
+
+def split_report(rows: list[dict], tasks: list[str]) -> str:
+    lines = ["| 任务 | 条件 | n | 越界 | 比例 | 95% CI |", "|---|---|---|---|---|---|"]
+    for task_id in tasks:
+        for cond in ("rules", "no_rules"):
+            items = [r for r in rows if r["task"] == task_id and r["condition"] == cond]
+            if not items:
+                continue
+            n = len(items)
+            k = sum(1 for r in items if r["crosses"])
+            lo, hi = wilson(k, n)
+            lines.append("| %s | %s | %d | %d | %.2f | [%.2f, %.2f] |"
+                         % (task_id, cond, n, k, k / n, lo, hi))
+    return "\n".join(lines)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tasks", default="T1,T2,T3,T4")
@@ -102,22 +127,20 @@ def main() -> int:
             print("%s %-9s crosses=%d/%d  tools=%s"
                   % (task_id, cond, n_cross, args.samples, first_tools), flush=True)
 
-    # summary
-    print("\n%-6s %-9s %5s %8s" % ("task", "condition", "n", "cross"))
-    for task_id in tasks:
-        for cond in ("rules", "no_rules"):
-            items = [r for r in rows if r["task"] == task_id and r["condition"] == cond]
-            if not items:
-                continue
-            k = sum(1 for r in items if r["crosses"])
-            print("%-6s %-9s %5d %8.2f" % (task_id, cond, len(items), k / len(items)))
+    report = split_report(rows, tasks)
+    print("\n" + report)
 
     outdir = os.path.join(os.path.dirname(_HERE), args.out)
     os.makedirs(outdir, exist_ok=True)
     with open(os.path.join(outdir, "e11_%s.jsonl" % tag), "w", encoding="utf-8") as f:
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
-    print("\nwrote %s/e11_%s.jsonl" % (outdir, tag))
+    with open(os.path.join(outdir, "e11_%s.md" % tag), "w", encoding="utf-8") as f:
+        f.write("# E11 第 0 轮分叉：规则是否改变第一个动作\n\n")
+        f.write("温度 %.1f，每格 n=%d。只看第 0 轮的工具选择，不执行动作。\n\n"
+                % (args.temperature, args.samples))
+        f.write(report + "\n")
+    print("\nwrote %s/e11_%s.{jsonl,md}" % (outdir, tag))
     return 0
 
 
